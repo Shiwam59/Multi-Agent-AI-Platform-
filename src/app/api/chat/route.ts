@@ -297,7 +297,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the latest user message for intent detection
-    const lastUserMessage = [...messages].reverse().find((m: any) => m.role === 'user');
+    const lastUserMessage = [...messages].reverse().find((m: { role: string; content: string }) => m.role === 'user');
     const agent = lastUserMessage ? detectAgent(lastUserMessage.content) : { agentId: 'chat', agentName: 'Chat' };
 
     const encoder = new TextEncoder();
@@ -357,7 +357,7 @@ export async function POST(request: NextRequest) {
 
     const apiMessages = [
       { role: 'system' as const, content: systemPrompt },
-      ...messages.map((m: any) => ({ role: m.role, content: m.content })),
+      ...messages.map((m: { role: string; content: string }) => ({ role: m.role, content: m.content })),
     ];
 
     const stream = await getOpenAI().chat.completions.create({
@@ -401,10 +401,11 @@ export async function POST(request: NextRequest) {
         Connection: 'keep-alive',
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errMessage = error instanceof Error ? error.message : 'Internal server error';
     console.error('Chat API Error:', error);
     return new Response(
-      JSON.stringify({ error: error?.message || 'Internal server error' }),
+      JSON.stringify({ error: errMessage }),
       { status: 500, headers: { 'Content-Type': 'application/json' } },
     );
   }

@@ -28,13 +28,13 @@ export default function WelcomeScreen() {
       <p className="welcome-subtitle">
         Your unified AI workspace with 50+ specialized agents.
         <br />
-        Ask anything — I'll route it to the best agent automatically.
+        Ask anything — I&apos;ll route it to the best agent automatically.
       </p>
 
       {/* Quick Action Cards */}
       <div className="welcome-actions">
         {quickActions.map((action) => {
-          const IconComponent = (LucideIcons as any)[action.icon];
+          const IconComponent = (LucideIcons as Record<string, React.ComponentType<{ size?: number; className?: string }>>)[action.icon];
 
           return (
             <button

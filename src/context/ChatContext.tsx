@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 // ============================================================
-// AI OS — Chat Context & State Management
+// AI OS — Chat Context & Global State Management
 // Now uses real OpenRouter API with streaming SSE responses
 // ============================================================
 
@@ -203,7 +204,9 @@ const ChatContext = createContext<ChatContextType | null>(null);
 export function ChatProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(chatReducer, initialState);
   const stateRef = useRef(state);
-  stateRef.current = state;
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   const activeConversation =
     state.conversations.find((c) => c.id === state.activeConversationId) ?? null;

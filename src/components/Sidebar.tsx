@@ -1,7 +1,8 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 // ============================================================
-// AI OS — Sidebar (Left Navigation)
+// AI OS — Sidebar Component (Navigation & Conversation History)
 // ============================================================
 
 import { useState, useRef, useEffect } from 'react';
