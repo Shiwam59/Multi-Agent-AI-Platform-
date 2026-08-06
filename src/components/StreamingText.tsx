@@ -5,7 +5,7 @@
 // ============================================================
 
 import { useEffect, useRef, useState } from 'react';
-import { Loader2, Film } from 'lucide-react';
+import { Loader2, Film, Play, Eye, EyeOff, Check, Copy } from 'lucide-react';
 
 interface StreamingTextProps {
   content: string;
@@ -32,22 +32,7 @@ export default function StreamingText({ content, isStreaming }: StreamingTextPro
     <div ref={containerRef} className="streaming-text">
       {parts.map((part, i) => {
         if (part.type === 'code') {
-          return (
-            <div key={i} className="code-block-wrapper">
-              <div className="code-block-header">
-                <span className="code-lang">{part.language}</span>
-                <button
-                  className="code-copy-btn"
-                  onClick={() => navigator.clipboard.writeText(part.content)}
-                >
-                  Copy
-                </button>
-              </div>
-              <pre className="code-block">
-                <code>{part.content}</code>
-              </pre>
-            </div>
-          );
+          return <CodeBlockCard key={i} part={part} />;
         }
 
         if (part.type === 'table') {
@@ -64,6 +49,93 @@ export default function StreamingText({ content, isStreaming }: StreamingTextPro
     </div>
   );
 }
+
+// ── Code Block Card with Live Sandbox Preview ────────────────
+function CodeBlockCard({ part }: { part: { language?: string; content: string } }) {
+  const [copied, setCopied] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+
+  const lang = (part.language || 'text').toLowerCase();
+  const isPreviewable = ['html', 'jsx', 'tsx', 'javascript', 'js', 'svg', 'xml'].includes(lang) || part.content.includes('<html') || part.content.includes('<div') || part.content.includes('<svg');
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(part.content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Generate safe HTML bundle for preview iframe
+  const getSrcDoc = () => {
+    let raw = part.content;
+
+    // If it's an SVG snippet directly
+    if (lang === 'svg' || raw.trim().startsWith('<svg')) {
+      return `<!DOCTYPE html><html><body style="display:flex;justify-content:center;align-items:center;min-height:100vh;background:#090d16;margin:0;">${raw}</body></html>`;
+    }
+
+    // Standard HTML / Component markup
+    if (!raw.includes('<html')) {
+      raw = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background-color: #0b0f19; color: #e2e8f0; font-family: system-ui, -apple-system, sans-serif; padding: 1.5rem; margin: 0; }
+  </style>
+</head>
+<body>
+  ${raw}
+</body>
+</html>`;
+    }
+    return raw;
+  };
+
+  return (
+    <div className="code-block-wrapper">
+      <div className="code-block-header">
+        <span className="code-lang">{part.language || 'code'}</span>
+        <div className="code-header-actions">
+          {isPreviewable && (
+            <button
+              className={`code-preview-btn ${showPreview ? 'preview-active' : ''}`}
+              onClick={() => setShowPreview(!showPreview)}
+              title={showPreview ? "Hide live preview" : "Run live preview"}
+            >
+              {showPreview ? <EyeOff size={13} /> : <Play size={13} />}
+              <span>{showPreview ? "Code Only" : "Live Preview"}</span>
+            </button>
+          )}
+          <button className="code-copy-btn" onClick={handleCopy}>
+            {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+            <span>{copied ? 'Copied' : 'Copy'}</span>
+          </button>
+        </div>
+      </div>
+
+      {showPreview ? (
+        <div className="code-sandbox-container">
+          <div className="sandbox-bar">
+            <span className="sandbox-title">⚡ Interactive Sandbox Preview</span>
+          </div>
+          <iframe
+            srcDoc={getSrcDoc()}
+            className="code-sandbox-iframe"
+            sandbox="allow-scripts"
+            title="Live Code Preview"
+          />
+        </div>
+      ) : (
+        <pre className="code-block">
+          <code>{part.content}</code>
+        </pre>
+      )}
+    </div>
+  );
+}
+
 
 // ── Markdown Parsing Helpers ──────────────────────────────────
 
