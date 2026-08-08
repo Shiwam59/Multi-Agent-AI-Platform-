@@ -6,6 +6,9 @@
 import { NextRequest } from 'next/server';
 import OpenAI from 'openai';
 
+export const dynamic = 'force-dynamic';
+
+
 // Lazy-init: avoid creating the client at build time when env vars aren't available
 let _openai: OpenAI | null = null;
 function getOpenAI() {
