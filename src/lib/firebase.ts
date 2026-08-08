@@ -1,41 +1,71 @@
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider, Auth } from "firebase/auth";
 import { getAnalytics, isSupported, Analytics } from "firebase/analytics";
 
-// Web app's Firebase configuration loaded from environment variables (with build-safe fallbacks)
+// Web app's Firebase configuration loaded from environment variables
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyB_BuildSafetyFallbackApiKeyForDeployment123",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "ai-os-platform.firebaseapp.com",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "ai-os-platform",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "ai-os-platform.appspot.com",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "123456789012",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:123456789012:web:abcdef1234567890",
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "G-XYZ1234567",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize Firebase
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+// ── Lazy initialization (client-side only) ────────────────────
+// Firebase SDK must NOT be initialized during Next.js server-side
+// build/SSR because env vars may not exist and getAuth() will crash.
 
-// Initialize Services
-const auth = getAuth(app);
-const googleProvider = new GoogleAuthProvider();
+let _app: FirebaseApp | null = null;
+let _auth: Auth | null = null;
+let _googleProvider: GoogleAuthProvider | null = null;
+let analytics: Analytics | null = null;
 
-// Custom parameters for Google Provider (forces account selection UI)
-googleProvider.setCustomParameters({
-  prompt: 'select_account'
-});
+function getFirebaseApp(): FirebaseApp {
+  if (!_app) {
+    _app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+  }
+  return _app;
+}
+
+function getFirebaseAuth(): Auth {
+  if (!_auth) {
+    _auth = getAuth(getFirebaseApp());
+  }
+  return _auth;
+}
+
+function getGoogleProvider(): GoogleAuthProvider {
+  if (!_googleProvider) {
+    _googleProvider = new GoogleAuthProvider();
+    _googleProvider.setCustomParameters({ prompt: 'select_account' });
+  }
+  return _googleProvider;
+}
 
 // Initialize Analytics conditionally (client-side only)
-let analytics: Analytics | null = null;
 if (typeof window !== "undefined") {
   isSupported().then((supported) => {
     if (supported) {
-      analytics = getAnalytics(app);
+      analytics = getAnalytics(getFirebaseApp());
     }
   }).catch(() => {
-    // Ignore analytics error in SSR / non-supported environments
+    // Ignore analytics errors
   });
 }
 
-export { app, auth, googleProvider, analytics };
+export { getFirebaseAuth as getAuth, getGoogleProvider as getGoogleProvider, analytics };
 
+// For backward compatibility — these getters are safe to call from client components
+export const auth = new Proxy({} as Auth, {
+  get(_target, prop) {
+    return (getFirebaseAuth() as any)[prop];
+  },
+});
+
+export const googleProvider = new Proxy({} as GoogleAuthProvider, {
+  get(_target, prop) {
+    return (getGoogleProvider() as any)[prop];
+  },
+});

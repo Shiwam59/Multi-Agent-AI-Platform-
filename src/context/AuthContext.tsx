@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 // ============================================================
@@ -6,7 +7,6 @@
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { auth, googleProvider } from '@/lib/firebase';
 
 interface AuthContextType {
   user: User | null;
@@ -21,19 +21,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Monitor Firebase Auth state change
+  // Monitor Firebase Auth state change (client-side only)
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      setUser(firebaseUser);
+    // Dynamically import firebase only on the client
+    import('@/lib/firebase').then(({ auth }) => {
+      const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+        setUser(firebaseUser);
+        setLoading(false);
+      });
+
+      return () => unsubscribe();
+    }).catch(() => {
+      // Firebase not available (e.g. missing config) — skip auth
       setLoading(false);
     });
-
-    return () => unsubscribe();
   }, []);
 
   const loginWithGoogle = async () => {
     setLoading(true);
     try {
+      const { auth, googleProvider } = await import('@/lib/firebase');
       await signInWithPopup(auth, googleProvider);
     } catch (error) {
       console.error("Error signing in with Google:", error);
@@ -45,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     setLoading(true);
     try {
+      const { auth } = await import('@/lib/firebase');
       await signOut(auth);
     } catch (error) {
       console.error("Error signing out:", error);
